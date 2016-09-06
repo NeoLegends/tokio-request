@@ -6,7 +6,7 @@
 //! opinionated as e.g. `hyper` and relying on the brand new
 //! `tokio_curl`-crate and `futures-rs`.
 //!
-//! ## Example
+//! ## Examples
 //! Asynchronously send an HTTP request on the specified loop:
 //!
 //! ```rust
