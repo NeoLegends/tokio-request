@@ -34,34 +34,9 @@ pub const MAX_REDIRECTS: u32 = 100;
 
 /// Represents an HTTP request.
 ///
-/// ## Example
-/// Asynchronously send an HTTP request on the specified loop:
-///
-/// ```rust
-/// # extern crate tokio_core;
-/// # extern crate tokio_request;
-/// # extern crate url;
-/// use tokio_core::Loop;
-/// use tokio_request::{Method, Request};
-/// use url::Url;
-///
-/// # fn main() {
-/// let mut evloop = Loop::new().unwrap();
-/// let future = Request::new(&Url::parse("https://httpbin.org/get").unwrap(), Method::Get)
-///                     .header("User-Agent", "tokio-request")
-///                     .param("Hello", "This is Rust")
-///                     .param("Hello2", "This is also from Rust")
-///                     .send(evloop.pin());
-/// // This executes the generated future in a blocking fashion, but we could,
-/// // e.g., run two requests at the same time via evloop.run(r1.join(r2)).
-/// let result = evloop.run(future).expect("HTTP Request failed!");
-/// println!(
-///     "Site answered with status code {} and body\n{}",
-///     result.status_code(),
-///     result.body_str().unwrap_or("<No response body>")
-/// );
-/// # }
-/// ```
+/// While this can be used directly (and _must_ be for special HTTP verbs, it is
+/// preferred to use the [`get`](fn.get.html), [`post`](fn.post.html), etc. functions
+/// since they are shorter.
 pub struct Request {
     body: Option<Vec<u8>>,
     follow_redirects: bool,

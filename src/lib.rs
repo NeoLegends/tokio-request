@@ -5,6 +5,79 @@
 //! for asynchronous HTTP in Rust. It does this by being much more
 //! opinionated as e.g. `hyper` and relying on the brand new
 //! `tokio_curl`-crate and `futures-rs`.
+//!
+//! ## Example
+//! Asynchronously send an HTTP request on the specified loop:
+//!
+//! ```rust
+//! # extern crate tokio_core;
+//! # extern crate tokio_request;
+//! # extern crate url;
+//! use tokio_core::Loop;
+//! use tokio_request::str::get;
+//! use url::Url;
+//!
+//! # fn main() {
+//! let mut evloop = Loop::new().unwrap();
+//! let future = get("https://httpbin.org/get")
+//!                 .header("User-Agent", "tokio-request")
+//!                 .param("Hello", "This is Rust")
+//!                 .param("Hello2", "This is also from Rust")
+//!                 .send(evloop.pin());
+//! let result = evloop.run(future).expect("HTTP Request failed!");
+//! # assert!(result.is_success());
+//! println!(
+//!     "Site answered with status code {} and body\n{}",
+//!     result.status_code(),
+//!     result.body_str().unwrap_or("<No response body>")
+//! );
+//! # }
+//! ```
+//!
+//! POST some JSON to an API:
+//!
+//! ```rust
+//! # #![feature(plugin)]
+//! # extern crate tokio_core;
+//! # extern crate tokio_request;
+//! # extern crate url;
+//! # #[cfg(feature = "rustc-serialization")]
+//! # extern crate rustc_serialize;
+//! # #[cfg(feature = "serde-serialization")]
+//! # extern crate serde;
+//! # #[cfg(feature = "serde-serialization")]
+//! # extern crate serde_json;
+//! use tokio_core::Loop;
+//! use tokio_request::str::post;
+//! #
+//! # #[cfg(feature = "rustc-serialization")]
+//! # #[derive(RustcEncodable)]
+//! # struct Data {
+//! #     a: u32,
+//! #     b: u32
+//! # }
+//! #
+//! # #[cfg(feature = "serde-serialization")]
+//! # #[derive(Serialize)]
+//! # struct Data {
+//! #     a: u32,
+//! #     b: u32
+//! # }
+//!
+//! # fn main() {
+//! let mut evloop = Loop::new().unwrap();
+//! let future = post("https://httpbin.org/post")
+//!                 .json(&Data { a: 10, b: 15 })
+//!                 .send(evloop.pin());
+//! let result = evloop.run(future).expect("HTTP Request failed!");
+//! # assert!(result.is_success());
+//! println!(
+//!     "Site answered with status code {} and body\n{}",
+//!     result.status_code(),
+//!     result.body_str().unwrap_or("<No response body>")
+//! );
+//! # }
+//! ```
 
 #![deny(missing_docs)]
 #![feature(receiver_try_iter)]
@@ -26,6 +99,7 @@ extern crate url;
 extern crate rustc_serialize;
 
 #[cfg(feature = "serde-serialization")]
+#[macro_use]
 extern crate serde;
 #[cfg(feature = "serde-serialization")]
 extern crate serde_json;
