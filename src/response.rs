@@ -9,11 +9,6 @@ use mime::Mime;
 #[cfg(feature = "rustc-serialization")]
 use rustc_serialize;
 
-#[cfg(feature = "serde-serialization")]
-use serde;
-#[cfg(feature = "serde-serialization")]
-use serde_json;
-
 /// Represents an HTTP response.
 pub struct Response {
     body: Vec<u8>,
@@ -111,13 +106,6 @@ impl Response {
     pub fn json<T: rustc_serialize::Decodable>(&self) -> Result<T, Error> {
         let string = try!(str::from_utf8(&self.body).map_err(|err| Error::new(ErrorKind::InvalidData, err)));
         rustc_serialize::json::decode(string).map_err(|err| Error::new(ErrorKind::InvalidData, err))
-    }
-
-    /// Attempts to decode the response body from JSON to an
-    /// object of the given type.
-    #[cfg(feature = "serde-serialization")]
-    pub fn json<T: serde::de::Deserialize>(&self) -> Result<T, Error> {
-        serde_json::from_slice(&self.body)
     }
 
     /// Consumes the response and returns the underlying cURL handle

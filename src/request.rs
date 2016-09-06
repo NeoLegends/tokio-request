@@ -16,11 +16,6 @@ use url::Url;
 #[cfg(feature = "rustc-serialization")]
 use rustc_serialize;
 
-#[cfg(feature = "serde-serialization")]
-use serde;
-#[cfg(feature = "serde-serialization")]
-use serde_json;
-
 /// The default low byte rate threshold. See [`Request::lowspeed_limit`](struct.Request.html#method.lowspeed_limit)
 /// for more information.
 pub const LOW_SPEED_LIMIT: u32 = 10;
@@ -104,16 +99,9 @@ impl Request {
 
     /// Serializes the given object to JSON and uses that as the request body.
     /// Also automatically sets the `Content-Type` to `application/json`.
-    #[cfg(all(feature = "rustc-serialization", not(feature = "serde-serialization")))]
+    #[cfg(feature = "rustc-serialization")]
     pub fn json<T: rustc_serialize::Encodable>(self, body: &T) -> Request {
         self.set_json(rustc_serialize::json::encode(body).unwrap().into_bytes())
-    }
-
-    /// Serializes the given object to JSON and uses that as the request body.
-    /// Also automatically sets the `Content-Type` to `application/json`.
-    #[cfg(all(feature = "serde-serialization", not(feature = "rustc-serialization")))]
-    pub fn json<T: serde::Serialize>(self, body: &T) -> Request {
-        self.set_json(serde_json::to_vec(body).unwrap())
     }
 
     /// Sets the thresholds which, when reached, abort a download due to too low speeds.
@@ -262,7 +250,7 @@ impl Request {
         self
     }
 
-    #[cfg(any(feature = "rustc-serialization", feature = "serde-serialization"))]
+    #[cfg(feature = "rustc-serialization")]
     fn set_json(mut self, body: Vec<u8>) -> Request {
         self.body = Some(body);
         self.header("Content-Type", "application/json")
@@ -303,14 +291,6 @@ mod tests {
     #[cfg(feature = "rustc-serialization")]
     use rustc_serialize;
 
-    #[cfg(feature = "serde-serialization")]
-    #[macro_use]
-    extern crate serde;
-    #[cfg(feature = "serde-serialization")]
-    use serde;
-    #[cfg(feature = "serde-serialization")]
-    use serde_json;
-
     #[cfg(feature = "rustc-serialization")]
     #[derive(RustcEncodable)]
     struct TestPayload {
@@ -318,15 +298,8 @@ mod tests {
         b: u32
     }
 
-    #[cfg(feature = "serde-serialization")]
-    #[derive(Serialize)]
-    struct TestPayload {
-        a: u32,
-        b: u32
-    }
-
     #[test]
-    #[cfg(any(feature = "rustc-serialization", feature = "serde-serialization"))]
+    #[cfg(feature = "rustc-serialization")]
     fn test_payload() {
         let r = Request::new(&Url::parse("http://google.com/").unwrap(), Method::Get)
             .body(&get_serialized_payload());
@@ -350,10 +323,5 @@ mod tests {
     #[cfg(feature = "rustc-serialization")]
     fn get_serialized_payload() -> Vec<u8> {
         rustc_serialize::json::encode(&TestPayload { a: 10, b: 15 }).unwrap().into_bytes()
-    }
-
-    #[cfg(feature = "serde-serialization")]
-    fn get_serialized_payload() -> Vec<u8> {
-        serde_json::ser::to_vec(&TestPayload { a: 10, b: 15 })
     }
 }

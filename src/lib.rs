@@ -98,12 +98,6 @@ extern crate url;
 #[cfg(feature = "rustc-serialization")]
 extern crate rustc_serialize;
 
-#[cfg(feature = "serde-serialization")]
-#[macro_use]
-extern crate serde;
-#[cfg(feature = "serde-serialization")]
-extern crate serde_json;
-
 mod request;
 mod response;
 
