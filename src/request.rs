@@ -104,8 +104,10 @@ impl Request {
         self.set_json(rustc_serialize::json::encode(body).unwrap().into_bytes())
     }
 
-    /// Sets the thresholds which, when reached, abort a download due to too low speeds.
-    /// Pass 0 for the either parameter to disable lowspeed limiting.
+    /// Sets the thresholds which, when reached, aborts a download due to too
+    /// low speeds.
+    ///
+    /// Pass 0 for either parameter to disable lowspeed limiting.
     ///
     /// ## Remarks
     /// `bytes` sets the minimum average amount of bytes transferred in `per_milliseconds`
