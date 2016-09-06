@@ -1,0 +1,20 @@
+[package]
+name = "tokio-request"
+version = "0.1.0"
+authors = ["Moritz Gunz <moritz.gunz@gmail.com>"]
+
+[dependencies]
+curl = "0.3"
+futures = { git = "https://github.com/alexcrichton/futures-rs" }
+mime = "0.2"
+rustc-serialize = { version = "0.3", optional = true }
+serde = { version = "0.8", optional = true }
+serde_json = { version = "0.8", optional = true }
+tokio-core = { git = "https://github.com/tokio-rs/tokio-core" }
+tokio-curl = { git = "https://github.com/tokio-rs/tokio-curl" }
+url = "1.2"
+
+[features]
+default = ["rustc-serialization"]
+serde-serialization = ["serde", "serde_json", "mime/serde"]
+rustc-serialization = ["rustc-serialize"]
