@@ -4,6 +4,8 @@
 
 An asynchronous HTTP client library for Rust
 
+[Documentation](https://neolegends.github.io/tokio-request/tokio_request/index.html)
+
 As this isn't crates.io as of now, add the following to your Cargo.toml to use this:
 ```
 [dependencies]
