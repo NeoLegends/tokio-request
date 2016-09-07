@@ -70,8 +70,10 @@ impl Response {
         str::from_utf8(self.body()).ok()
     }
 
-    /// Retreives the content type, if there is one. This function also
-    /// returns none if there has been an error parsing the mime type.
+    /// Retreives the content type, if there is one.
+    ///
+    /// This function also returns none if there has been an error parsing
+    /// the mime type.
     pub fn content_type(&self) -> Option<Mime> {
         self.header("Content-Type")
             .and_then(|h| h.parse::<Mime>().ok())
@@ -99,7 +101,6 @@ impl Response {
     /// Attempts to decode the response body from JSON to an
     /// object of the given type.
     ///
-    /// ## Returns
     /// Returns `ErrorKind::InvalidData` when the server response could not
     /// be read as UTF-8 string or if it could not be deserialized from JSON.
     #[cfg(feature = "rustc-serialization")]
@@ -110,6 +111,8 @@ impl Response {
 
     /// Consumes the response and returns the underlying cURL handle
     /// used for the request.
+    ///
+    /// Calling `from()` or `into()` does the same.
     pub fn reuse(self) -> Easy {
         self.handle
     }
