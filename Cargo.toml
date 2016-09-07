@@ -3,6 +3,12 @@ name = "tokio-request"
 version = "0.1.0"
 authors = ["Moritz Gunz <moritz.gunz@gmail.com>"]
 
+readme = "An asynchronous HTTP client for Rust"
+documentation = "https://docs.rs/tokio-request"
+homepage = "https://github.com/NeoLegends/tokio-request"
+keywords = ["http", "client", "async", "asynchronous"]
+license = "MIT"
+
 [dependencies]
 curl = "0.3"
 futures = { git = "https://github.com/alexcrichton/futures-rs" }
