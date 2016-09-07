@@ -6,7 +6,7 @@
 //! opinionated as e.g. `hyper` and relying on the brand new
 //! `tokio_curl`-crate and `futures-rs`.
 //!
-//! ## Examples
+//! # Quick Start
 //! Asynchronously send an HTTP request on the specified loop:
 //!
 //! ```rust
@@ -78,6 +78,14 @@
 //! );
 //! # }
 //! ```
+//!
+//! # Caveats
+//! Right now the focus for this library is on interacting with REST
+//! APIs that talk JSON, so this library is buffering the entire response
+//! into memory. This means it is not recommended for downloading large
+//! files from the internet. Streaming request / response bodies will be
+//! added at a later stage when implementation and API details have been
+//! figured out.
 
 #![deny(missing_docs)]
 #![feature(receiver_try_iter)]
