@@ -266,7 +266,7 @@ impl Debug for Request {
         } else {
             -1isize
         };
-        fmt.debug_struct(nameof!(Request))
+        fmt.debug_struct(stringify!(Request))
             .field("body_len", &len)
             .field("follow_redirects", &self.follow_redirects)
             .field("headers", &self.headers)
@@ -287,7 +287,6 @@ impl Display for Request {
 #[cfg(test)]
 mod tests {
     use ::{Method, Request};
-    use tokio_core::reactor::Core;
     use url::Url;
 
     #[cfg(feature = "rustc-serialization")]
@@ -306,20 +305,6 @@ mod tests {
         let r = Request::new(&Url::parse("http://google.com/").unwrap(), Method::Get)
             .body(&get_serialized_payload());
         assert!(r.body.is_some());
-    }
-
-    #[test]
-    fn test_request () {
-        let mut evloop = Core::new().unwrap();
-        let future = Request::new(&Url::parse("https://httpbin.org/get").unwrap(), Method::Get)
-                            .header("User-Agent", "tokio-request")
-                            .param("Hello", "This is Rust")
-                            .param("Hello2", "This is also from Rust")
-                            .send(evloop.handle());
-        let result = evloop.run(future).expect("HTTP Request failed!");
-        assert!(result.is_success());
-        assert!(result.body().len() > 0);
-        assert!(result.headers().len() > 0);
     }
 
     #[cfg(feature = "rustc-serialization")]

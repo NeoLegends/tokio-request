@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::convert::From;
+use std::fmt::{Debug, Formatter, Result as FmtResult};
 use std::io::{Error, ErrorKind};
 use std::str;
 use curl::easy::Easy;
@@ -109,6 +110,17 @@ impl Response {
         rustc_serialize::json::decode(string).map_err(|err| Error::new(ErrorKind::InvalidData, err))
     }
 
+    /// Attempts to decode the response body from JSON into an abstract
+    /// JSON representation.
+    ///
+    /// Returns `ErrorKind::InvalidData` when the server response could not
+    /// be read as UTF-8 string or if it could not be deserialized from JSON.
+    #[cfg(feature = "rustc-serialization")]
+    pub fn json_value(&self) -> Result<rustc_serialize::json::Json, Error> {
+        let string = try!(str::from_utf8(&self.body).map_err(|err| Error::new(ErrorKind::InvalidData, err)));
+        rustc_serialize::json::Json::from_str(string).map_err(|err| Error::new(ErrorKind::InvalidData, err))
+    }
+
     /// Consumes the response and returns the underlying cURL handle
     /// used for the request.
     ///
@@ -120,6 +132,16 @@ impl Response {
     /// Gets the response status code.
     pub fn status_code(&self) -> u16 {
         self.status_code
+    }
+}
+
+impl Debug for Response {
+    fn fmt(&self, fmt: &mut Formatter) -> FmtResult {
+        fmt.debug_struct(stringify!(Response))
+            .field("body_str", &self.body_str())
+            .field("headers", &self.headers)
+            .field("status_code", &self.status_code)
+            .finish()
     }
 }
 
