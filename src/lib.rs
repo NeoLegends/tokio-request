@@ -166,58 +166,6 @@ pub mod str {
     fn parse_url(url: &str) -> Url {
         Url::parse(url).unwrap()
     }
-
-    #[cfg(test)]
-    mod tests {
-        macro_rules! generate_http_tests {
-            ($name:ident) => {
-                #[test]
-                fn $name() {
-                    use super::$name;
-                    use tokio_core::reactor::Core;
-
-                    let mut evloop = Core::new().unwrap();
-                    let request = $name(&format!("https://httpbin.org/{}", stringify!($name)))
-                                     .header("User-Agent", "tokio-request")
-                                     .param("Hello", "This is Rust")
-                                     .param("Hello2", "This is also from Rust");
-                    println!("{:?}", request);
-                    let future = request.send(evloop.handle());
-                    let result = evloop.run(future).expect("HTTP Request failed!");
-                    println!("{:?}", result);
-                    assert!(result.is_success());
-                    assert!(result.body().len() > 0);
-                    assert!(result.headers().len() > 0);
-                }
-            }
-        }
-
-        generate_http_tests!(get);
-        generate_http_tests!(post);
-        generate_http_tests!(put);
-        generate_http_tests!(delete);
-
-        #[test]
-        #[cfg(feature = "rustc-serialization")]
-        fn test_json() {
-            use super::get;
-            use tokio_core::reactor::Core;
-
-            let mut evloop = Core::new().unwrap();
-            let request = get("https://httpbin.org/get")
-                             .header("User-Agent", "tokio-request")
-                             .param("Hello", "This is Rust")
-                             .param("Hello2", "This is also from Rust");
-            println!("{:?}", request);
-            let future = request.send(evloop.handle());
-            let result = evloop.run(future).expect("HTTP Request failed!");
-            println!("{:?}", result);
-            assert!(result.is_success());
-            assert!(result.body().len() > 0);
-            assert!(result.headers().len() > 0);
-            result.json_value().unwrap();
-        }
-    }
 }
 
 /// Represents an HTTP method.
@@ -272,4 +220,40 @@ impl Display for Method {
     fn fmt(&self, fmt: &mut Formatter) -> FmtResult {
         fmt.write_str(self.as_ref())
     }
+}
+
+#[cfg(test)]
+mod tests {
+    macro_rules! generate_http_tests {
+        ($name:ident) => {
+            #[test]
+            fn $name() {
+                use super::str::$name;
+                use tokio_core::reactor::Core;
+
+                let mut evloop = Core::new().unwrap();
+                let request = $name(&format!("https://httpbin.org/{}", stringify!($name)))
+                                    .header("User-Agent", "tokio-request")
+                                    .param("Hello", "This is Rust")
+                                    .param("Hello2", "This is also from Rust");
+                let future = request.send(evloop.handle());
+                let result = evloop.run(future).expect("HTTP Request failed!");
+
+                println!("{:?}", result);
+
+                assert!(result.is_success());
+                assert!(result.body().len() > 0);
+                assert!(result.headers().len() > 0);
+
+                if cfg!(feature = "rustc-serialization") {
+                    result.json_value().unwrap();
+                }
+            }
+        }
+    }
+
+    generate_http_tests!(get);
+    generate_http_tests!(post);
+    generate_http_tests!(put);
+    generate_http_tests!(delete);
 }
