@@ -9,7 +9,7 @@ use super::Method;
 use curl::easy::{Easy, List};
 use futures::{BoxFuture, failed, Future};
 use response::Response;
-use tokio_core::LoopPin;
+use tokio_core::reactor::Handle;
 use tokio_curl::Session;
 use url::Url;
 
@@ -141,8 +141,8 @@ impl Request {
     /// Creates a new `Session` on the specified event loop to send the HTTP request through
     /// and returns a future that fires off the request, parses the response and resolves to
     /// a `Response`-struct on success.
-    pub fn send(self, lp: LoopPin) -> BoxFuture<Response, Error> {
-        self.send_with_session(&Session::new(lp))
+    pub fn send(self, h: Handle) -> BoxFuture<Response, Error> {
+        self.send_with_session(&Session::new(h))
     }
 
     /// Uses the given `Session` to send the HTTP request through and returns a future that
@@ -287,7 +287,7 @@ impl Display for Request {
 #[cfg(test)]
 mod tests {
     use ::{Method, Request};
-    use tokio_core::Loop;
+    use tokio_core::reactor::Core;
     use url::Url;
 
     #[cfg(feature = "rustc-serialization")]
@@ -310,12 +310,12 @@ mod tests {
 
     #[test]
     fn test_request () {
-        let mut evloop = Loop::new().unwrap();
+        let mut evloop = Core::new().unwrap();
         let future = Request::new(&Url::parse("https://httpbin.org/get").unwrap(), Method::Get)
                             .header("User-Agent", "tokio-request")
                             .param("Hello", "This is Rust")
                             .param("Hello2", "This is also from Rust")
-                            .send(evloop.pin());
+                            .send(evloop.handle());
         let result = evloop.run(future).expect("HTTP Request failed!");
         assert!(result.is_success());
         assert!(result.body().len() > 0);

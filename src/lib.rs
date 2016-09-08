@@ -13,17 +13,16 @@
 //! # extern crate tokio_core;
 //! # extern crate tokio_request;
 //! # extern crate url;
-//! use tokio_core::Loop;
+//! use tokio_core::reactor::Core;
 //! use tokio_request::str::get;
-//! use url::Url;
 //!
 //! # fn main() {
-//! let mut evloop = Loop::new().unwrap();
+//! let mut evloop = Core::new().unwrap();
 //! let future = get("https://httpbin.org/get")
 //!                 .header("User-Agent", "tokio-request")
 //!                 .param("Hello", "This is Rust")
 //!                 .param("Hello2", "This is also from Rust")
-//!                 .send(evloop.pin());
+//!                 .send(evloop.handle());
 //! let result = evloop.run(future).expect("HTTP Request failed!");
 //! # assert!(result.is_success());
 //! println!(
@@ -47,7 +46,7 @@
 //! # extern crate serde;
 //! # #[cfg(feature = "serde-serialization")]
 //! # extern crate serde_json;
-//! use tokio_core::Loop;
+//! use tokio_core::reactor::Core;
 //! use tokio_request::str::post;
 //! #
 //! # #[cfg(feature = "rustc-serialization")]
@@ -65,10 +64,10 @@
 //! # }
 //!
 //! # fn main() {
-//! let mut evloop = Loop::new().unwrap();
+//! let mut evloop = Core::new().unwrap();
 //! let future = post("https://httpbin.org/post")
 //!                 .json(&Data { a: 10, b: 15 })
-//!                 .send(evloop.pin());
+//!                 .send(evloop.handle());
 //! let result = evloop.run(future).expect("HTTP Request failed!");
 //! # assert!(result.is_success());
 //! println!(

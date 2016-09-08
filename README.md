@@ -16,16 +16,16 @@ tokio-request = { git = "https://github.com/NeoLegends/tokio-request" }
 Asynchronously send an HTTP request on the specified loop:
 
 ```rust
-use tokio_core::Loop;
+use tokio_core::reactor::Core;
 use tokio_request::str::get;
 use url::Url;
 
-let mut evloop = Loop::new().unwrap();
+let mut evloop = Core::new().unwrap();
 let future = get("https://httpbin.org/get")
                 .header("User-Agent", "tokio-request")
                 .param("Hello", "This is Rust")
                 .param("Hello2", "This is also from Rust")
-                .send(evloop.pin());
+                .send(evloop.handle());
 let result = evloop.run(future).expect("HTTP Request failed!");
 println!(
     "Site answered with status code {} and body\n{}",
@@ -37,13 +37,13 @@ println!(
 POST some JSON to an API (data must be rustc-serializable):
 
 ```rust
-use tokio_core::Loop;
+use tokio_core::reactor::Core;
 use tokio_request::str::post;
 
-let mut evloop = Loop::new().unwrap();
+let mut evloop = Core::new().unwrap();
 let future = post("https://httpbin.org/post")
                 .json(&Data { a: 10, b: 15 })
-                .send(evloop.pin());
+                .send(evloop.handle());
 let result = evloop.run(future).expect("HTTP Request failed!");
 println!(
     "Site answered with status code {} and body\n{}",
