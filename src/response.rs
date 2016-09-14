@@ -1,3 +1,5 @@
+//! The module that contains the code handling the HTTP response.
+
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::convert::From;

@@ -1,3 +1,5 @@
+//! The module that contains the request code.
+
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
