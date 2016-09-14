@@ -6,6 +6,8 @@
 //! opinionated as e.g. `hyper` and relying on the brand new
 //! `tokio_curl`-crate and `futures-rs`.
 //!
+//! This library only works on Rust nightly at the moment.
+//!
 //! # Quick Start
 //! Asynchronously send an HTTP request on the specified loop:
 //!
@@ -85,6 +87,7 @@
 #![feature(receiver_try_iter)]
 #![cfg_attr(feature = "serde-serialization", feature(plugin, custom_derive))]
 #![cfg_attr(feature = "serde-serialization", plugin(serde_macros))]
+#![cfg_attr(test, feature(concat_idents))]
 
 extern crate curl;
 extern crate futures;
@@ -142,31 +145,27 @@ pub mod str {
 
     /// Issue a GET-Request to the specified URL.
     pub fn get(url: &str) -> Request {
-        super::get(&parse_url(url))
+        request(url, Method::Get)
     }
 
     /// Issue a DELETE-Request to the specified URL.
     pub fn delete(url: &str) -> Request {
-        super::delete(&parse_url(url))
+        request(url, Method::Delete)
     }
 
     /// Issue a POST-Request to the specified URL.
     pub fn post(url: &str) -> Request {
-        super::post(&parse_url(url))
+        request(url, Method::Post)
     }
 
     /// Issue a PUT-Request to the specified URL.
     pub fn put(url: &str) -> Request {
-        super::put(&parse_url(url))
+        request(url, Method::Put)
     }
 
     /// Issue a request with the specified method to the specified URL.
     pub fn request(url: &str, method: Method) -> Request {
-        super::request(&parse_url(url), method)
-    }
-
-    fn parse_url(url: &str) -> Url {
-        Url::parse(url).unwrap()
+        super::request(&Url::parse(url).unwrap(), method)
     }
 }
 
@@ -226,82 +225,65 @@ impl Display for Method {
 
 #[cfg(test)]
 mod tests {
-    macro_rules! generate_test_body {
-        ($name:ident, $handle:expr) => {{
-            use super::str::$name;
-            $name(&format!("https://httpbin.org/{}", stringify!($name)))
-                .header("User-Agent", "tokio-request")
-                .param("Hello", "This is Rust")
-                .param("Hello2", "This is also from Rust")
-                .send($handle)
-        }}
-    }
-
-    // #[test]
-    // fn test_all_together() {
-    //     use tokio_core::reactor::Core;
-
-    //     let mut evloop = Core::new().unwrap();
-    //     let parallel = generate_test_body!(get, evloop.handle()).join4(
-    //         generate_test_body!(post, evloop.handle()),
-    //         generate_test_body!(put, evloop.handle()),
-    //         generate_test_body!(delete, evloop.handle())
-    //     );
-    //     let (res1, res2, res3, res4) = evloop.run(parallel).expect("At least one HTTP request failed.");
-    //     println!("{:?}\n{:?}\n{:?}\n{:?}", res1, res2, res3, res4);
-
-    //     assert!(
-    //         res1.is_success() &&
-    //         res2.is_success() &&
-    //         res3.is_success() &&
-    //         res4.is_success()
-    //     );
-    //     assert!(
-    //         res1.body().len() > 0 &&
-    //         res2.body().len() > 0 &&
-    //         res3.body().len() > 0 &&
-    //         res4.body().len() > 0
-    //     );
-    //     assert!(
-    //         res1.headers().len() > 0 &&
-    //         res2.headers().len() > 0 &&
-    //         res3.headers().len() > 0 &&
-    //         res4.headers().len() > 0
-    //     );
-
-    //     if cfg!(feature = "rustc-serialization") {
-    //         res1.json_value().unwrap();
-    //         res2.json_value().unwrap();
-    //         res3.json_value().unwrap();
-    //         res4.json_value().unwrap();
-    //     }
-    // }
-
-    macro_rules! generate_standalone_http_tests {
+    macro_rules! generate_str_tests {
         ($name:ident) => {
             #[test]
             fn $name() {
+                use ::str::$name;
                 use tokio_core::reactor::Core;
 
-                let mut evloop = Core::new().unwrap();
-                let handle = evloop.handle();
-                let result = evloop.run(generate_test_body!($name, handle)).expect("HTTP Request failed!");
-
-                println!("{:?}", result);
-
-                assert!(result.is_success());
-                assert!(result.body().len() > 0);
-                assert!(result.headers().len() > 0);
-
-                if cfg!(feature = "rustc-serialization") || cfg!(feature = "serde-serialization") {
-                    result.json_value().unwrap();
-                }
+                _test_body!($name, format!("https://httpbin.org/{}", stringify!($name)));
             }
         }
     }
 
-    generate_standalone_http_tests!(get);
-    generate_standalone_http_tests!(post);
-    generate_standalone_http_tests!(put);
-    generate_standalone_http_tests!(delete);
+    macro_rules! generate_url_tests {
+        ($name:ident) => {
+            #[test]
+            fn $name() {
+                use ::$name;
+                use tokio_core::reactor::Core;
+                use url::Url;
+
+                _test_body!($name, Url::parse(&format!("https://httpbin.org/{}", stringify!($name))).unwrap());
+            }
+        }
+    }
+
+    macro_rules! _test_body {
+        ($name:ident, $url:expr) => {{
+            let mut evloop = Core::new().unwrap();
+            let handle = evloop.handle();
+            let request = $name(&$url)
+                .header("User-Agent", "tokio-request")
+                .param("Hello", "This is Rust")
+                .param("Hello2", "This is also from Rust")
+                .send(handle);
+            let result = evloop.run(request).expect("HTTP Request failed!");
+
+            println!("{:?}", result);
+
+            assert!(result.is_success());
+            assert!(result.body().len() > 0);
+            assert!(result.headers().len() > 0);
+
+            if cfg!(feature = "rustc-serialization") || cfg!(feature = "serde-serialization") {
+                result.json_value().unwrap();
+            }
+        }}
+    }
+
+    mod str {
+        generate_str_tests!(get);
+        generate_str_tests!(post);
+        generate_str_tests!(put);
+        generate_str_tests!(delete);
+    }
+
+    mod url {
+        generate_url_tests!(get);
+        generate_url_tests!(post);
+        generate_url_tests!(put);
+        generate_url_tests!(delete);
+    }
 }

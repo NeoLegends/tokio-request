@@ -4,13 +4,13 @@
 
 An asynchronous HTTP client library for Rust
 
-[Documentation](https://neolegends.github.io/tokio-request/tokio_request/index.html)
-
-As this isn't crates.io as of now, add the following to your Cargo.toml to use this:
+As this isn't crates.io as of now, add the following to your Cargo.toml:
 ```
 [dependencies]
 tokio-request = { git = "https://github.com/NeoLegends/tokio-request" }
 ```
+
+This library only works on Rust nightly at the moment.
 
 ## Examples
 Asynchronously send an HTTP request on the specified loop:
@@ -34,7 +34,7 @@ println!(
 );
 ```
 
-POST some JSON to an API (data must be rustc-serializable):
+POST some JSON to an API (data must be serializable):
 
 ```rust
 use tokio_core::reactor::Core;
@@ -51,3 +51,11 @@ println!(
     result.body_str().unwrap_or("<No response body>")
 );
 ```
+
+## Caveats
+Right now the focus for this library is on interacting with REST
+APIs that talk JSON, so this library is buffering the entire response
+into memory. This means it is not recommended for downloading large
+files from the internet. Streaming request / response bodies will be
+added at a later stage when implementation and API details have been
+figured out.
