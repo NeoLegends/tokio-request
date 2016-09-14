@@ -18,7 +18,6 @@ install:
   - pip install 'travis-cargo<0.2' --user && export PATH=$HOME/.local/bin:$PATH
 
 script:
-  - cargo build
   - cargo test --no-default-features --features rustc-serialization
   - cargo test --no-default-features --features serde-serialization
 
