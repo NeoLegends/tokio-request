@@ -134,7 +134,7 @@ impl Request {
     /// Pass 0 for either parameter to disable lowspeed limiting.
     ///
     /// ## Remarks
-    /// `bytes` sets the minimum average amount of bytes transferred in `per_milliseconds`
+    /// `bytes` sets the minimum average amount of bytes transferred in `per_duration`
     /// time. If this number is not reached, cURL will abort the transfer because the transfer
     /// speed is too low.
     ///
