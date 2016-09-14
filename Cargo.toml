@@ -6,7 +6,7 @@ authors = ["Moritz Gunz <moritz.gunz@gmail.com>"]
 readme = "An asynchronous HTTP client for Rust"
 documentation = "https://docs.rs/tokio-request"
 homepage = "https://github.com/NeoLegends/tokio-request"
-keywords = ["http", "client", "async", "asynchronous"]
+keywords = ["http", "client", "request", "rest", "async", "asynchronous"]
 license = "MIT"
 
 [dependencies]
@@ -14,10 +14,14 @@ curl = "0.3"
 futures = "0.1"
 mime = "0.2"
 rustc-serialize = { version = "0.3", optional = true }
+serde = { version = "0.8", optional = true }
+serde_json = { version = "0.8", optional = true }
+serde_macros = { version = "0.8", optional = true }
 tokio-core = "0.1"
 tokio-curl = "0.1"
 url = "1.2"
 
 [features]
-default = ["rustc-serialization"]
+default = ["serde-serialization"]
 rustc-serialization = ["rustc-serialize"]
+serde-serialization = ["serde", "serde_json", "serde_macros", "mime/serde"]

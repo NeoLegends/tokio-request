@@ -10,6 +10,11 @@ use mime::Mime;
 #[cfg(feature = "rustc-serialization")]
 use rustc_serialize;
 
+#[cfg(feature = "serde-serialization")]
+use serde;
+#[cfg(feature = "serde-serialization")]
+use serde_json;
+
 /// Represents an HTTP response.
 pub struct Response {
     body: Vec<u8>,
@@ -52,7 +57,7 @@ impl Response {
             }
             map
         };
-        let status_code = easy.response_code().unwrap() as u16;
+        let status_code = easy.response_code().expect("Failed to get the response status code from cURL.") as u16;
         Response {
             body: body,
             handle: easy,
@@ -91,7 +96,7 @@ impl Response {
     }
 
     /// Checks whether the returned status code represents a success
-    /// (HTTP status code 200-299) or not.
+    /// (HTTP status code 2xx) or not.
     pub fn is_success(&self) -> bool {
         match self.status_code {
             200...299 => true,
@@ -110,6 +115,16 @@ impl Response {
         rustc_serialize::json::decode(string).map_err(|err| Error::new(ErrorKind::InvalidData, err))
     }
 
+    /// Attempts to decode the response body from JSON to an
+    /// object of the given type.
+    ///
+    /// Returns `ErrorKind::InvalidData` when the server response could not
+    /// be read as UTF-8 string or if it could not be deserialized from JSON.
+    #[cfg(feature = "serde-serialization")]
+    pub fn json<T: serde::Deserialize>(&self) -> Result<T, Error> {
+        serde_json::from_slice(self.body()).map_err(|err| Error::new(ErrorKind::InvalidData, err))
+    }
+
     /// Attempts to decode the response body from JSON into an abstract
     /// JSON representation.
     ///
@@ -119,6 +134,16 @@ impl Response {
     pub fn json_value(&self) -> Result<rustc_serialize::json::Json, Error> {
         let string = try!(str::from_utf8(&self.body).map_err(|err| Error::new(ErrorKind::InvalidData, err)));
         rustc_serialize::json::Json::from_str(string).map_err(|err| Error::new(ErrorKind::InvalidData, err))
+    }
+
+    /// Attempts to decode the response body from JSON into an abstract
+    /// JSON representation.
+    ///
+    /// Returns `ErrorKind::InvalidData` when the server response could not
+    /// be read as UTF-8 string or if it could not be deserialized from JSON.
+    #[cfg(feature = "serde-serialization")]
+    pub fn json_value(&self) -> Result<serde_json::Value, Error> {
+        self.json::<serde_json::Value>()
     }
 
     /// Consumes the response and returns the underlying cURL handle

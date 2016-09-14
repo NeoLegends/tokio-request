@@ -37,6 +37,8 @@
 //!
 //! ```rust
 //! # #![feature(plugin)]
+//! # #![cfg_attr(feature = "serde-serialization", feature(plugin, custom_derive))]
+//! # #![cfg_attr(feature = "serde-serialization", plugin(serde_macros))]
 //! # extern crate tokio_core;
 //! # extern crate tokio_request;
 //! # extern crate url;
@@ -49,15 +51,8 @@
 //! use tokio_core::reactor::Core;
 //! use tokio_request::str::post;
 //! #
-//! # #[cfg(feature = "rustc-serialization")]
-//! # #[derive(RustcEncodable)]
-//! # struct Data {
-//! #     a: u32,
-//! #     b: u32
-//! # }
-//! #
-//! # #[cfg(feature = "serde-serialization")]
-//! # #[derive(Serialize)]
+//! # #[cfg_attr(feature = "rustc-serialization", derive(RustcEncodable, RustcDecodable))]
+//! # #[cfg_attr(feature = "serde-serialization", derive(Serialize, Deserialize))]
 //! # struct Data {
 //! #     a: u32,
 //! #     b: u32
@@ -66,7 +61,7 @@
 //! # fn main() {
 //! let mut evloop = Core::new().unwrap();
 //! let future = post("https://httpbin.org/post")
-//!                 .json(&Data { a: 10, b: 15 })
+//!                 .json(&Data { a: 10, b: 15 }) // Data is anything serializable
 //!                 .send(evloop.handle());
 //! let result = evloop.run(future).expect("HTTP Request failed!");
 //! # assert!(result.is_success());
@@ -88,6 +83,8 @@
 
 #![deny(missing_docs)]
 #![feature(receiver_try_iter)]
+#![cfg_attr(feature = "serde-serialization", feature(plugin, custom_derive))]
+#![cfg_attr(feature = "serde-serialization", plugin(serde_macros))]
 
 extern crate curl;
 extern crate futures;
@@ -98,6 +95,11 @@ extern crate url;
 
 #[cfg(feature = "rustc-serialization")]
 extern crate rustc_serialize;
+
+#[cfg(feature = "serde-serialization")]
+extern crate serde;
+#[cfg(feature = "serde-serialization")]
+extern crate serde_json;
 
 mod request;
 mod response;
@@ -224,20 +226,66 @@ impl Display for Method {
 
 #[cfg(test)]
 mod tests {
-    macro_rules! generate_http_tests {
+    macro_rules! generate_test_body {
+        ($name:ident, $handle:expr) => {{
+            use super::str::$name;
+            $name(&format!("https://httpbin.org/{}", stringify!($name)))
+                .header("User-Agent", "tokio-request")
+                .param("Hello", "This is Rust")
+                .param("Hello2", "This is also from Rust")
+                .send($handle)
+        }}
+    }
+
+    // #[test]
+    // fn test_all_together() {
+    //     use tokio_core::reactor::Core;
+
+    //     let mut evloop = Core::new().unwrap();
+    //     let parallel = generate_test_body!(get, evloop.handle()).join4(
+    //         generate_test_body!(post, evloop.handle()),
+    //         generate_test_body!(put, evloop.handle()),
+    //         generate_test_body!(delete, evloop.handle())
+    //     );
+    //     let (res1, res2, res3, res4) = evloop.run(parallel).expect("At least one HTTP request failed.");
+    //     println!("{:?}\n{:?}\n{:?}\n{:?}", res1, res2, res3, res4);
+
+    //     assert!(
+    //         res1.is_success() &&
+    //         res2.is_success() &&
+    //         res3.is_success() &&
+    //         res4.is_success()
+    //     );
+    //     assert!(
+    //         res1.body().len() > 0 &&
+    //         res2.body().len() > 0 &&
+    //         res3.body().len() > 0 &&
+    //         res4.body().len() > 0
+    //     );
+    //     assert!(
+    //         res1.headers().len() > 0 &&
+    //         res2.headers().len() > 0 &&
+    //         res3.headers().len() > 0 &&
+    //         res4.headers().len() > 0
+    //     );
+
+    //     if cfg!(feature = "rustc-serialization") {
+    //         res1.json_value().unwrap();
+    //         res2.json_value().unwrap();
+    //         res3.json_value().unwrap();
+    //         res4.json_value().unwrap();
+    //     }
+    // }
+
+    macro_rules! generate_standalone_http_tests {
         ($name:ident) => {
             #[test]
             fn $name() {
-                use super::str::$name;
                 use tokio_core::reactor::Core;
 
                 let mut evloop = Core::new().unwrap();
-                let request = $name(&format!("https://httpbin.org/{}", stringify!($name)))
-                                    .header("User-Agent", "tokio-request")
-                                    .param("Hello", "This is Rust")
-                                    .param("Hello2", "This is also from Rust");
-                let future = request.send(evloop.handle());
-                let result = evloop.run(future).expect("HTTP Request failed!");
+                let handle = evloop.handle();
+                let result = evloop.run(generate_test_body!($name, handle)).expect("HTTP Request failed!");
 
                 println!("{:?}", result);
 
@@ -245,15 +293,15 @@ mod tests {
                 assert!(result.body().len() > 0);
                 assert!(result.headers().len() > 0);
 
-                if cfg!(feature = "rustc-serialization") {
+                if cfg!(feature = "rustc-serialization") || cfg!(feature = "serde-serialization") {
                     result.json_value().unwrap();
                 }
             }
         }
     }
 
-    generate_http_tests!(get);
-    generate_http_tests!(post);
-    generate_http_tests!(put);
-    generate_http_tests!(delete);
+    generate_standalone_http_tests!(get);
+    generate_standalone_http_tests!(post);
+    generate_standalone_http_tests!(put);
+    generate_standalone_http_tests!(delete);
 }

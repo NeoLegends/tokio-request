@@ -16,16 +16,29 @@ use url::Url;
 #[cfg(feature = "rustc-serialization")]
 use rustc_serialize;
 
-/// The default low byte rate threshold. See [`Request::lowspeed_limit`](struct.Request.html#method.lowspeed_limit)
+#[cfg(feature = "serde-serialization")]
+use serde;
+#[cfg(feature = "serde-serialization")]
+use serde_json;
+
+/// The default low byte rate threshold.
+///
+/// See [`Request::lowspeed_limit`](struct.Request.html#method.lowspeed_limit)
 /// for more information.
 pub const LOW_SPEED_LIMIT: u32 = 10;
 
-/// The default low speed time threshold. See [`Request::lowspeed_limit`](struct.Request.html#method.lowspeed_limit)
+/// The default low speed time threshold.
+///
+/// See [`Request::lowspeed_limit`](struct.Request.html#method.lowspeed_limit)
 /// for more information.
 pub const LOW_SPEED_MILLIS: u32 = 10_000;
 
-/// The maximum amount of redirects for a single request that cURL will follow.
-pub const MAX_REDIRECTS: u32 = 100;
+/// The default redirect threshold for a single request.
+///
+/// cURL will follow this many redirects by default before aborting
+/// the request. See [`Request::max_redirects`](struct.Request.html#method.max_redirects)
+/// for more information.
+pub const MAX_REDIRECTS: u32 = 15;
 
 /// Represents an HTTP request.
 ///
@@ -38,6 +51,7 @@ pub struct Request {
     handle: Option<Easy>,
     headers: HashMap<String, String>,
     lowspeed_limits: Option<(u32, u32)>,
+    max_redirects: u32,
     method: Method,
     params: HashMap<String, Vec<String>>,
     url: Url
@@ -45,13 +59,14 @@ pub struct Request {
 
 impl Request {
     /// Creates a new instance of `Request`.
-    pub fn new(url: &Url, method: Method) -> Request {
+    pub fn new(url: &Url, method: Method) -> Self {
         Request {
             body: None,
             follow_redirects: true,
             handle: None,
             headers: HashMap::new(),
             lowspeed_limits: Some((LOW_SPEED_LIMIT, LOW_SPEED_MILLIS)),
+            max_redirects: MAX_REDIRECTS,
             method: method,
             params: HashMap::new(),
             url: url.clone()
@@ -59,7 +74,7 @@ impl Request {
     }
 
     /// Sets the body of the request as raw byte array.
-    pub fn body(mut self, body: &AsRef<[u8]>) -> Request {
+    pub fn body(mut self, body: &AsRef<[u8]>) -> Self {
         self.body = Some(Vec::from(body.as_ref()));
         self
     }
@@ -67,7 +82,7 @@ impl Request {
     /// Sets the option whether to follow 3xx-redirects or not.
     ///
     /// Defaults to `true`.
-    pub fn follow_redirects(mut self, follow: bool) -> Request {
+    pub fn follow_redirects(mut self, follow: bool) -> Self {
         self.follow_redirects = follow;
         self
     }
@@ -84,7 +99,7 @@ impl Request {
     /// header, just set a comma-separated list here, as that, as per standards,
     /// is equivalent to sending multiple headers with the same name (see link).
     /// If your server code can't deal with that, go and burn. :P
-    pub fn header(mut self, name: &str, value: &str) -> Request {
+    pub fn header(mut self, name: &str, value: &str) -> Self {
         if value.is_empty() {
             self.headers.remove(name);
         } else {
@@ -100,8 +115,15 @@ impl Request {
     /// Serializes the given object to JSON and uses that as the request body.
     /// Also automatically sets the `Content-Type` to `application/json`.
     #[cfg(feature = "rustc-serialization")]
-    pub fn json<T: rustc_serialize::Encodable>(self, body: &T) -> Request {
+    pub fn json<T: rustc_serialize::Encodable>(self, body: &T) -> Self {
         self.set_json(rustc_serialize::json::encode(body).unwrap().into_bytes())
+    }
+
+    /// Serializes the given object to JSON and uses that as the request body.
+    /// Also automatically sets the `Content-Type` to `application/json`.
+    #[cfg(feature = "serde-serialization")]
+    pub fn json<T: serde::Serialize>(self, body: &T) -> Self {
+        self.set_json(serde_json::to_vec(body).unwrap())
     }
 
     /// Sets the thresholds which, when reached, aborts a download due to too
@@ -114,8 +136,9 @@ impl Request {
     /// time. If this number is not reached, cURL will abort the transfer because the transfer
     /// speed is too low.
     ///
-    /// The values here default to `LOW_SPEED_LIMIT` and `LOW_SPEED_MILLIS`.
-    pub fn lowspeed_limit(mut self, bytes: u32, per_milliseconds: u32) -> Request {
+    /// The values here default to [`LOW_SPEED_LIMIT`](constant.LOW_SPEED_LIMIT.html) and
+    /// [`LOW_SPEED_MILLIS`](constant.LOW_SPEED_MILLIS.html).
+    pub fn lowspeed_limit(mut self, bytes: u32, per_milliseconds: u32) -> Self {
         self.lowspeed_limits = if bytes > 0 && per_milliseconds > 0 {
             Some((bytes, per_milliseconds))
         } else {
@@ -124,12 +147,20 @@ impl Request {
         self
     }
 
+    /// Sets the maximum amount of redirects cURL will follow when
+    /// [`Request::follow_redirects`](#method.follow_redirects) is
+    /// enabled.
+    pub fn max_redirects(mut self, max_redirects: u32) -> Self {
+        self.max_redirects = max_redirects;
+        self
+    }
+
     /// Adds a URL parameter to the request.
     ///
     /// ## Duplicates
     /// Duplicates are allowed to enable things like query parameters that use
     /// PHP array syntax (`&key[]=value`).
-    pub fn param(mut self, name: &str, value: &str) -> Request {
+    pub fn param(mut self, name: &str, value: &str) -> Self {
         let value = value.to_owned();
         match self.params.entry(name.to_owned()) {
             Entry::Occupied(mut e) => e.get_mut().push(value),
@@ -173,9 +204,10 @@ impl Request {
             let body = self.body;
             let follow_redirects = self.follow_redirects;
             let lowspeed_limits = self.lowspeed_limits;
+            let max_redirects = self.max_redirects;
             let method = self.method;
             let url = self.url;
-            let mut first_header = true; // First header is HTTP status line
+            let mut first_header = true;
 
             // We cannot use try! here, since we're dealing with futures, not with Results
             Ok(())
@@ -183,6 +215,7 @@ impl Request {
                 .and_then(|_| easy.custom_request(method.as_ref()))
                 .and_then(|_| if follow_redirects {
                     easy.follow_location(true)
+                        .and_then(|_| easy.max_redirections(max_redirects))
                 } else {
                     Ok(())
                 })
@@ -190,7 +223,7 @@ impl Request {
                     match from_utf8(header) {
                         Ok(s) => {
                             let s = s.trim(); // Headers are \n-separated
-                            if !first_header && s.len() > 0 {
+                            if !first_header && s.len() > 0 { // First header is HTTP status line, don't want that
                                 let _ = header_tx.send(s.to_owned());
                             }
                             first_header = false;
@@ -206,7 +239,6 @@ impl Request {
                 } else {
                     Ok(())
                 })
-                .and_then(|_| easy.max_redirections(MAX_REDIRECTS))
                 .and_then(|_| if method == Method::Head {
                     easy.nobody(true)
                 } else {
@@ -247,13 +279,13 @@ impl Request {
     /// This is solely a way to improve performance, it is not necessary to call
     /// this method prior to firing off the request. The easy handle will be created
     /// automatically if necessary.
-    pub fn use_handle(mut self, handle: Easy) -> Request {
+    pub fn use_handle(mut self, handle: Easy) -> Self {
         self.handle = Some(handle);
         self
     }
 
-    #[cfg(feature = "rustc-serialization")]
-    fn set_json(mut self, body: Vec<u8>) -> Request {
+    #[cfg(any(feature = "rustc-serialization", feature = "serde-serialization"))]
+    fn set_json(mut self, body: Vec<u8>) -> Self {
         self.body = Some(body);
         self.header("Content-Type", "application/json")
     }
@@ -292,15 +324,17 @@ mod tests {
     #[cfg(feature = "rustc-serialization")]
     use rustc_serialize;
 
-    #[cfg(feature = "rustc-serialization")]
-    #[derive(RustcEncodable)]
+    #[cfg(feature = "serde-serialization")]
+    use serde_json;
+
+    #[cfg_attr(feature = "rustc-serialization", derive(RustcEncodable, RustcDecodable))]
+    #[cfg_attr(feature = "serde-serialization", derive(Serialize, Deserialize))]
     struct TestPayload {
         a: u32,
         b: u32
     }
 
     #[test]
-    #[cfg(feature = "rustc-serialization")]
     fn test_payload() {
         let r = Request::new(&Url::parse("http://google.com/").unwrap(), Method::Get)
             .body(&get_serialized_payload());
@@ -310,5 +344,10 @@ mod tests {
     #[cfg(feature = "rustc-serialization")]
     fn get_serialized_payload() -> Vec<u8> {
         rustc_serialize::json::encode(&TestPayload { a: 10, b: 15 }).unwrap().into_bytes()
+    }
+
+    #[cfg(feature = "serde-serialization")]
+    fn get_serialized_payload() -> Vec<u8> {
+        serde_json::to_vec(&TestPayload { a: 10, b: 15}).unwrap()
     }
 }
