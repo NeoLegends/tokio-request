@@ -252,12 +252,15 @@ mod tests {
 
     macro_rules! _test_body {
         ($name:ident, $url:expr) => {{
+            use std::time::Duration;
+
             let mut evloop = Core::new().unwrap();
             let handle = evloop.handle();
             let request = $name(&$url)
                 .header("User-Agent", "tokio-request")
                 .param("Hello", "This is Rust")
                 .param("Hello2", "This is also from Rust")
+                .timeout(Duration::from_secs(20))
                 .send(handle);
             let result = evloop.run(request).expect("HTTP Request failed!");
 

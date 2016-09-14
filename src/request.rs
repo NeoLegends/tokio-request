@@ -27,11 +27,11 @@ use serde_json;
 /// for more information.
 pub const LOW_SPEED_LIMIT: u32 = 10;
 
-/// The default low speed time threshold.
+/// The default low speed time threshold in seconds.
 ///
 /// See [`Request::lowspeed_limit`](struct.Request.html#method.lowspeed_limit)
 /// for more information.
-pub const LOW_SPEED_MILLIS: u32 = 10_000;
+pub const LOW_SPEED_TIME: u32 = 10;
 
 /// The default redirect threshold for a single request.
 ///
@@ -50,10 +50,11 @@ pub struct Request {
     follow_redirects: bool,
     handle: Option<Easy>,
     headers: HashMap<String, String>,
-    lowspeed_limits: Option<(u32, u32)>,
+    lowspeed_limits: Option<(u32, Duration)>,
     max_redirects: u32,
     method: Method,
     params: HashMap<String, Vec<String>>,
+    timeout: Option<Duration>,
     url: Url
 }
 
@@ -65,10 +66,11 @@ impl Request {
             follow_redirects: true,
             handle: None,
             headers: HashMap::new(),
-            lowspeed_limits: Some((LOW_SPEED_LIMIT, LOW_SPEED_MILLIS)),
+            lowspeed_limits: Some((LOW_SPEED_LIMIT, Duration::from_secs(LOW_SPEED_TIME as u64))),
             max_redirects: MAX_REDIRECTS,
             method: method,
             params: HashMap::new(),
+            timeout: None,
             url: url.clone()
         }
     }
@@ -137,10 +139,10 @@ impl Request {
     /// speed is too low.
     ///
     /// The values here default to [`LOW_SPEED_LIMIT`](constant.LOW_SPEED_LIMIT.html) and
-    /// [`LOW_SPEED_MILLIS`](constant.LOW_SPEED_MILLIS.html).
-    pub fn lowspeed_limit(mut self, bytes: u32, per_milliseconds: u32) -> Self {
-        self.lowspeed_limits = if bytes > 0 && per_milliseconds > 0 {
-            Some((bytes, per_milliseconds))
+    /// [`LOW_SPEED_TIME`](constant.LOW_SPEED_TIME.html).
+    pub fn lowspeed_limit(mut self, bytes: u32, per_duration: Duration) -> Self {
+        self.lowspeed_limits = if bytes > 0 && per_duration > Duration::from_secs(0) {
+            Some((bytes, per_duration))
         } else {
             None
         };
@@ -206,6 +208,7 @@ impl Request {
             let lowspeed_limits = self.lowspeed_limits;
             let max_redirects = self.max_redirects;
             let method = self.method;
+            let timeout = self.timeout;
             let url = self.url;
             let mut first_header = true;
 
@@ -233,9 +236,9 @@ impl Request {
                     }
                 }))
                 .and_then(|_| easy.http_headers(headers))
-                .and_then(|_| if let Some((bytes, per_millis)) = lowspeed_limits {
+                .and_then(|_| if let Some((bytes, per_time)) = lowspeed_limits {
                     easy.low_speed_limit(bytes)
-                        .and_then(|_| easy.low_speed_time(Duration::from_millis(per_millis as u64)))
+                        .and_then(|_| easy.low_speed_time(per_time))
                 } else {
                     Ok(())
                 })
@@ -246,6 +249,11 @@ impl Request {
                 })
                 .and_then(|_| if let Some(ref body) = body {
                     easy.post_fields_copy(body)
+                } else {
+                    Ok(())
+                })
+                .and_then(|_| if let Some(timeout) = timeout {
+                    easy.timeout(timeout)
                 } else {
                     Ok(())
                 })
@@ -271,6 +279,14 @@ impl Request {
                             .boxed(),
             Err(error) => failed(error.into()).boxed()
         }
+    }
+
+    /// Set the maximum time the request is allowed to take.
+    ///
+    /// Disabled by default in favor of [`lowspeed_limit`]
+    pub fn timeout(mut self, duration: Duration) -> Self {
+        self.timeout = Some(duration);
+        self
     }
 
     /// Uses the given cURL handle in the request process reusing its resources
