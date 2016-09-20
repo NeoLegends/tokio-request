@@ -83,7 +83,7 @@
 //! added at a later stage when implementation and API details have been
 //! figured out.
 
-#![deny(missing_docs)]
+#![deny(dead_code, missing_docs, unused_variables)]
 #![feature(receiver_try_iter)]
 #![cfg_attr(feature = "serde-serialization", feature(plugin, custom_derive))]
 #![cfg_attr(feature = "serde-serialization", plugin(serde_macros))]
