@@ -85,6 +85,7 @@
 
 #![deny(dead_code, missing_docs, unused_variables)]
 #![feature(receiver_try_iter)]
+#![cfg_attr(feature = "response-to-string", feature(try_from))]
 #![cfg_attr(feature = "serde-serialization", feature(plugin, custom_derive))]
 #![cfg_attr(feature = "serde-serialization", plugin(serde_macros))]
 #![cfg_attr(test, feature(concat_idents))]

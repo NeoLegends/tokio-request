@@ -22,6 +22,7 @@ tokio-curl = "0.1"
 url = "1.2"
 
 [features]
-default = ["rustc-serialization"]
+default = ["rustc-serialization", "response-to-string"]
+response-to-string = []
 rustc-serialization = ["rustc-serialize"]
 serde-serialization = ["serde", "serde_json", "serde_macros", "mime/serde"]

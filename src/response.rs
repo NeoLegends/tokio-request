@@ -6,6 +6,8 @@ use std::convert::From;
 use std::fmt::{Debug, Formatter, Result as FmtResult};
 use std::io::{Error, ErrorKind};
 use std::str;
+use std::string::FromUtf8Error;
+
 use curl::easy::Easy;
 use mime::Mime;
 
@@ -180,5 +182,20 @@ impl Debug for Response {
 impl From<Response> for Easy {
     fn from(response: Response) -> Self {
         response.reuse()
+    }
+}
+
+impl From<Response> for Vec<u8> {
+    fn from(response: Response) -> Self {
+        response.body
+    }
+}
+
+#[cfg(feature = "response-to-string")]
+impl ::std::convert::TryFrom<Response> for String {
+    type Err = FromUtf8Error;
+
+    fn try_from(response: Response) -> Result<Self, Self::Err> {
+        String::from_utf8(response.body)
     }
 }
