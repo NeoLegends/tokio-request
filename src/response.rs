@@ -68,9 +68,14 @@ impl Response {
         }
     }
 
-    /// Gets the request body's bytes.
+    /// Gets the response body's bytes.
     pub fn body(&self) -> &[u8] {
         &self.body
+    }
+
+    /// Gets a mutable reference to the response body's bytes.
+    pub fn body_mut(&mut self) -> &mut [u8] {
+        &mut self.body
     }
 
     /// Attempts to read the body as UTF-8 string and returns the result.
