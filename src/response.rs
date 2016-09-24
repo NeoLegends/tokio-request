@@ -6,7 +6,6 @@ use std::convert::From;
 use std::fmt::{Debug, Formatter, Result as FmtResult};
 use std::io::{Error, ErrorKind};
 use std::str;
-use std::string::FromUtf8Error;
 
 use curl::easy::Easy;
 use mime::Mime;
@@ -156,7 +155,7 @@ impl Response {
     }
 
     /// Consumes the response and returns the underlying cURL handle
-    /// used for the request.
+    /// used for the request so that it can be reused.
     ///
     /// Calling `from()` or `into()` does the same.
     pub fn reuse(self) -> Easy {
@@ -193,7 +192,7 @@ impl From<Response> for Vec<u8> {
 
 #[cfg(feature = "response-to-string")]
 impl ::std::convert::TryFrom<Response> for String {
-    type Err = FromUtf8Error;
+    type Err = ::std::string::FromUtf8Error;
 
     fn try_from(response: Response) -> Result<Self, Self::Err> {
         String::from_utf8(response.body)
