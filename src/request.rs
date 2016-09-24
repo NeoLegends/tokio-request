@@ -114,6 +114,9 @@ impl Request {
 
     /// Serializes the given object to JSON and uses that as the request body.
     /// Also automatically sets the `Content-Type` to `application/json`.
+    ///
+    /// ## Panics
+    /// Panics if serialization is not successful.
     #[cfg(feature = "rustc-serialization")]
     pub fn json<T: rustc_serialize::Encodable>(self, body: &T) -> Self {
         self.set_json(rustc_serialize::json::encode(body).unwrap().into_bytes())
@@ -121,6 +124,9 @@ impl Request {
 
     /// Serializes the given object to JSON and uses that as the request body.
     /// Also automatically sets the `Content-Type` to `application/json`.
+    ///
+    /// ## Panics
+    /// Panics if serialization is not successful.
     #[cfg(feature = "serde-serialization")]
     pub fn json<T: serde::Serialize>(self, body: &T) -> Self {
         self.set_json(serde_json::to_vec(body).unwrap())
@@ -172,12 +178,18 @@ impl Request {
     /// Creates a new `Session` on the specified event loop to send the HTTP request through
     /// and returns a future that fires off the request, parses the response and resolves to
     /// a `Response`-struct on success.
+    ///
+    /// ## Panics
+    /// Panics in case of native exceptions in cURL.
     pub fn send(self, h: Handle) -> BoxFuture<Response, Error> {
         self.send_with_session(&Session::new(h))
     }
 
     /// Uses the given `Session` to send the HTTP request through and returns a future that
     /// fires off the request, parses the response and resolves to a `Response`-struct on success.
+    ///
+    /// ## Panics
+    /// Panics in case of native exceptions in cURL.
     pub fn send_with_session(mut self, session: &Session) -> BoxFuture<Response, Error> {
         {
             let mut query_pairs = self.url.query_pairs_mut();
@@ -264,16 +276,15 @@ impl Request {
 
         match config_res {
             Ok(_) => session.perform(easy)
+                            .map_err(|err| err.into_error())
                             .map(move |ez| {
                                 let body = body_rx.try_iter().fold(Vec::new(), |mut data, slice| {
                                     data.extend(slice);
                                     data
                                 });
                                 let headers = header_rx.try_iter().collect::<Vec<_>>();
-                                (ez, headers, body)
+                                Response::new(ez, headers, body)
                             })
-                            .map(|(ez, headers, body)| Response::new(ez, headers, body))
-                            .map_err(|err| err.into_error())
                             .boxed(),
             Err(error) => failed(error.into()).boxed()
         }
