@@ -4,7 +4,6 @@ use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::convert::From;
 use std::fmt::{Debug, Formatter, Result as FmtResult};
-use std::io::{Error, ErrorKind};
 use std::str;
 
 use curl::easy::Easy;
@@ -17,6 +16,9 @@ use rustc_serialize;
 use serde;
 #[cfg(feature = "serde-serialization")]
 use serde_json;
+
+#[cfg(any(feature = "rustc-serialization", feature = "serde-serialization"))]
+use std::io::{Error, ErrorKind};
 
 /// Represents an HTTP response.
 pub struct Response {

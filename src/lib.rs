@@ -60,6 +60,7 @@
 //! #     b: u32
 //! # }
 //!
+//! # #[cfg(any(feature = "rustc-serialization", feature = "serde-serialization"))]
 //! # fn main() {
 //! let mut evloop = Core::new().unwrap();
 //! let future = post("https://httpbin.org/post")
@@ -73,6 +74,8 @@
 //!     result.body_str().unwrap_or("<No response body>")
 //! );
 //! # }
+//! # #[cfg(not(any(feature = "rustc-serialization", feature = "serde-serialization")))]
+//! # fn main() { }
 //! ```
 //!
 //! # Caveats
@@ -83,7 +86,7 @@
 //! added at a later stage when implementation and API details have been
 //! figured out.
 
-#![deny(dead_code, missing_docs, unused_variables)]
+#![deny(missing_docs)]
 #![feature(receiver_try_iter)]
 #![cfg_attr(feature = "response-to-string", feature(try_from))]
 #![cfg_attr(feature = "serde-serialization", feature(plugin, custom_derive))]
@@ -270,10 +273,6 @@ mod tests {
             assert!(result.is_success());
             assert!(result.body().len() > 0);
             assert!(result.headers().len() > 0);
-
-            if cfg!(feature = "rustc-serialization") || cfg!(feature = "serde-serialization") {
-                result.json_value().unwrap();
-            }
         }}
     }
 

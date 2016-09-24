@@ -349,6 +349,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(any(feature = "rustc-serialization", feature = "serde-serialization"))]
     fn test_payload() {
         let r = Request::new(&Url::parse("http://google.com/").unwrap(), Method::Get)
             .body(&get_serialized_payload());
