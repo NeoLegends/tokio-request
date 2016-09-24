@@ -107,11 +107,7 @@ impl Request {
         if value.is_empty() {
             self.headers.remove(name);
         } else {
-            let value = value.to_owned();
-            match self.headers.entry(name.to_owned()) {
-                Entry::Occupied(mut e) => { e.insert(value); () }
-                Entry::Vacant(e) => { e.insert(value); () }
-            }
+            self.headers.insert(name.to_owned(), value.to_owned());
         }
         self
     }
