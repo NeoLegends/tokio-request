@@ -20,7 +20,8 @@ install:
 script:
   - cargo test --no-default-features --features rustc-serialization
   - cargo test --no-default-features --features serde-serialization
-  
+  - cargo test --no-default-features --features response-to-string
+
 #after_success:
 #- if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then travis-cargo coveralls --no-sudo --verify; fi
 #- if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then ./kcov/build/src/kcov --verify --coveralls-id=$TRAVIS_JOB_ID --exclude-pattern=/.cargo target/kcov target/debug/tokio_request-*; fi
