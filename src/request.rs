@@ -78,8 +78,8 @@ impl Request {
     }
 
     /// Sets the body of the request as raw byte array.
-    pub fn body(mut self, body: &AsRef<[u8]>) -> Self {
-        self.body = Some(Vec::from(body.as_ref()));
+    pub fn body<B: Into<Vec<u8>>>(mut self, body: B) -> Self {
+        self.body = Some(body.into());
         self
     }
 
@@ -363,7 +363,7 @@ mod tests {
     #[cfg(any(feature = "rustc-serialization", feature = "serde-serialization"))]
     fn test_payload() {
         let r = Request::new(&Url::parse("http://google.com/").unwrap(), Method::Get)
-            .body(&get_serialized_payload());
+            .body(get_serialized_payload());
         assert!(r.body.is_some());
     }
 
