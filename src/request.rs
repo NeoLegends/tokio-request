@@ -1,7 +1,5 @@
 //! The module that contains the request code.
 
-use std::collections::HashMap;
-use std::collections::hash_map::Entry;
 use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use std::io::Error;
 use std::str::from_utf8;
@@ -51,11 +49,11 @@ pub struct Request {
     body: Option<Vec<u8>>,
     follow_redirects: bool,
     handle: Option<Easy>,
-    headers: HashMap<String, String>,
+    headers: Vec<(String, String)>,
     lowspeed_limits: Option<(u32, Duration)>,
     max_redirects: u32,
     method: Method,
-    params: HashMap<String, Vec<String>>,
+    params: Vec<(String, String)>,
     timeout: Option<Duration>,
     url: Url
 }
@@ -67,11 +65,11 @@ impl Request {
             body: None,
             follow_redirects: true,
             handle: None,
-            headers: HashMap::new(),
+            headers: Vec::new(),
             lowspeed_limits: Some((LOW_SPEED_LIMIT, Duration::from_secs(LOW_SPEED_TIME as u64))),
             max_redirects: MAX_REDIRECTS,
             method: method,
-            params: HashMap::new(),
+            params: Vec::new(),
             timeout: None,
             url: url.clone()
         }
@@ -91,24 +89,9 @@ impl Request {
         self
     }
 
-    /// Sets an HTTP header for the request. Remove headers by passing
-    /// an empty value.
-    ///
-    /// ## Duplicates
-    /// In spite of the W3C allowing multiple headers with the same name
-    /// (https://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2),
-    /// we do not so that we get a cleaner and leaner API.
-    ///
-    /// If you really need to specify multiple header values for a single
-    /// header, just set a comma-separated list here, as that, as per standards,
-    /// is equivalent to sending multiple headers with the same name (see link).
-    /// If your server code can't deal with that, go and burn. :P
+    /// Adds an HTTP header to the request.
     pub fn header(mut self, name: &str, value: &str) -> Self {
-        if value.is_empty() {
-            self.headers.remove(name);
-        } else {
-            self.headers.insert(name.to_owned(), value.to_owned());
-        }
+        self.headers.push((name.to_owned(), value.to_owned()));
         self
     }
 
@@ -162,16 +145,8 @@ impl Request {
     }
 
     /// Adds a URL parameter to the request.
-    ///
-    /// ## Duplicates
-    /// Duplicates are allowed to enable things like query parameters that use
-    /// PHP array syntax (`&key[]=value`).
     pub fn param(mut self, name: &str, value: &str) -> Self {
-        let value = value.to_owned();
-        match self.params.entry(name.to_owned()) {
-            Entry::Occupied(mut e) => e.get_mut().push(value),
-            Entry::Vacant(e) => { e.insert(vec![value]); () }
-        };
+        self.params.push((name.to_owned(), value.to_owned()));
         self
     }
 
@@ -193,10 +168,8 @@ impl Request {
     pub fn send_with_session(mut self, session: &Session) -> BoxFuture<Response, Error> {
         {
             let mut query_pairs = self.url.query_pairs_mut();
-            for (key, values) in self.params {
-                for value in values {
-                    query_pairs.append_pair(&key, &value);
-                }
+            for (key, value) in self.params {
+                query_pairs.append_pair(&key, &value);
             }
         }
         let headers = {
