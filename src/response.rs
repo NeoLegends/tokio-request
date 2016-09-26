@@ -80,6 +80,18 @@ impl Response {
             .and_then(|h| h.parse::<Mime>().ok())
     }
 
+    /// Ensures a successful response status code.
+    ///
+    /// Otherwise returns `ErrorKind::InvalidData`.
+    pub fn ensure_success(self) -> Result<Response, Error> {
+        if self.is_success() {
+            Ok(self)
+        } else {
+            let msg: &str = &format!("HTTP status code did not indicate success: {}.", self.status_code());
+            Err(Error::new(ErrorKind::InvalidData, msg))
+        }
+    }
+
     /// Attempts to get a single header value.
     ///
     /// If there are multiple headers with the same name, this method returns
@@ -147,14 +159,6 @@ impl Response {
         self.json::<serde_json::Value>()
     }
 
-    /// Consumes the response and returns the underlying cURL handle
-    /// used for the request so that it can be reused.
-    ///
-    /// Calling `from()` or `into()` does the same.
-    pub fn reuse(self) -> Easy {
-        self.handle
-    }
-
     /// Gets the response status code.
     pub fn status_code(&self) -> u16 {
         self.status_code
@@ -172,8 +176,10 @@ impl Debug for Response {
 }
 
 impl From<Response> for Easy {
+    /// Consumes the response and returns the underlying cURL handle
+    /// used for the request so that it can be reused.
     fn from(response: Response) -> Self {
-        response.reuse()
+        response.handle
     }
 }
 
