@@ -95,6 +95,14 @@ impl Request {
         self
     }
 
+    /// Sets the given request headers.
+    ///
+    /// This overwrites all previously set headers.
+    pub fn headers(mut self, headers: Vec<(String, String)>) -> Self {
+        self.headers = headers;
+        self
+    }
+
     /// Serializes the given object to JSON and uses that as the request body.
     /// Also automatically sets the `Content-Type` to `application/json`.
     ///
