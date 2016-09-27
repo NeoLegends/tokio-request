@@ -1,7 +1,5 @@
 //! The module that contains the request code.
 
-use std::collections::HashMap;
-use std::collections::hash_map::Entry;
 use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use std::io::Error;
 use std::str::from_utf8;
@@ -51,11 +49,11 @@ pub struct Request {
     body: Option<Vec<u8>>,
     follow_redirects: bool,
     handle: Option<Easy>,
-    headers: HashMap<String, String>,
+    headers: Vec<(String, String)>,
     lowspeed_limits: Option<(u32, Duration)>,
     max_redirects: u32,
     method: Method,
-    params: HashMap<String, Vec<String>>,
+    params: Vec<(String, String)>,
     timeout: Option<Duration>,
     url: Url
 }
@@ -67,19 +65,19 @@ impl Request {
             body: None,
             follow_redirects: true,
             handle: None,
-            headers: HashMap::new(),
+            headers: Vec::new(),
             lowspeed_limits: Some((LOW_SPEED_LIMIT, Duration::from_secs(LOW_SPEED_TIME as u64))),
             max_redirects: MAX_REDIRECTS,
             method: method,
-            params: HashMap::new(),
+            params: Vec::new(),
             timeout: None,
             url: url.clone()
         }
     }
 
     /// Sets the body of the request as raw byte array.
-    pub fn body(mut self, body: &AsRef<[u8]>) -> Self {
-        self.body = Some(Vec::from(body.as_ref()));
+    pub fn body<B: Into<Vec<u8>>>(mut self, body: B) -> Self {
+        self.body = Some(body.into());
         self
     }
 
@@ -91,29 +89,25 @@ impl Request {
         self
     }
 
-    /// Sets an HTTP header for the request. Remove headers by passing
-    /// an empty value.
-    ///
-    /// ## Duplicates
-    /// In spite of the W3C allowing multiple headers with the same name
-    /// (https://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2),
-    /// we do not so that we get a cleaner and leaner API.
-    ///
-    /// If you really need to specify multiple header values for a single
-    /// header, just set a comma-separated list here, as that, as per standards,
-    /// is equivalent to sending multiple headers with the same name (see link).
-    /// If your server code can't deal with that, go and burn. :P
+    /// Adds an HTTP header to the request.
     pub fn header(mut self, name: &str, value: &str) -> Self {
-        if value.is_empty() {
-            self.headers.remove(name);
-        } else {
-            self.headers.insert(name.to_owned(), value.to_owned());
-        }
+        self.headers.push((name.to_owned(), value.to_owned()));
+        self
+    }
+
+    /// Sets the given request headers.
+    ///
+    /// This overwrites all previously set headers.
+    pub fn headers(mut self, headers: Vec<(String, String)>) -> Self {
+        self.headers = headers;
         self
     }
 
     /// Serializes the given object to JSON and uses that as the request body.
     /// Also automatically sets the `Content-Type` to `application/json`.
+    ///
+    /// ## Panics
+    /// Panics if serialization is not successful.
     #[cfg(feature = "rustc-serialization")]
     pub fn json<T: rustc_serialize::Encodable>(self, body: &T) -> Self {
         self.set_json(rustc_serialize::json::encode(body).unwrap().into_bytes())
@@ -121,6 +115,9 @@ impl Request {
 
     /// Serializes the given object to JSON and uses that as the request body.
     /// Also automatically sets the `Content-Type` to `application/json`.
+    ///
+    /// ## Panics
+    /// Panics if serialization is not successful.
     #[cfg(feature = "serde-serialization")]
     pub fn json<T: serde::Serialize>(self, body: &T) -> Self {
         self.set_json(serde_json::to_vec(body).unwrap())
@@ -156,35 +153,31 @@ impl Request {
     }
 
     /// Adds a URL parameter to the request.
-    ///
-    /// ## Duplicates
-    /// Duplicates are allowed to enable things like query parameters that use
-    /// PHP array syntax (`&key[]=value`).
     pub fn param(mut self, name: &str, value: &str) -> Self {
-        let value = value.to_owned();
-        match self.params.entry(name.to_owned()) {
-            Entry::Occupied(mut e) => e.get_mut().push(value),
-            Entry::Vacant(e) => { e.insert(vec![value]); () }
-        };
+        self.params.push((name.to_owned(), value.to_owned()));
         self
     }
 
     /// Creates a new `Session` on the specified event loop to send the HTTP request through
     /// and returns a future that fires off the request, parses the response and resolves to
     /// a `Response`-struct on success.
+    ///
+    /// ## Panics
+    /// Panics in case of native exceptions in cURL.
     pub fn send(self, h: Handle) -> BoxFuture<Response, Error> {
         self.send_with_session(&Session::new(h))
     }
 
     /// Uses the given `Session` to send the HTTP request through and returns a future that
     /// fires off the request, parses the response and resolves to a `Response`-struct on success.
+    ///
+    /// ## Panics
+    /// Panics in case of native exceptions in cURL.
     pub fn send_with_session(mut self, session: &Session) -> BoxFuture<Response, Error> {
         {
             let mut query_pairs = self.url.query_pairs_mut();
-            for (key, values) in self.params {
-                for value in values {
-                    query_pairs.append_pair(key.trim(), value.trim());
-                }
+            for (key, value) in self.params {
+                query_pairs.append_pair(key.trim(), value.trim());
             }
         }
         let headers = {
@@ -264,16 +257,15 @@ impl Request {
 
         match config_res {
             Ok(_) => session.perform(easy)
+                            .map_err(|err| err.into_error())
                             .map(move |ez| {
                                 let body = body_rx.try_iter().fold(Vec::new(), |mut data, slice| {
                                     data.extend(slice);
                                     data
                                 });
                                 let headers = header_rx.try_iter().collect::<Vec<_>>();
-                                (ez, headers, body)
+                                Response::new(ez, headers, body)
                             })
-                            .map(|(ez, headers, body)| Response::new(ez, headers, body))
-                            .map_err(|err| err.into_error())
                             .boxed(),
             Err(error) => failed(error.into()).boxed()
         }
@@ -349,9 +341,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg(any(feature = "rustc-serialization", feature = "serde-serialization"))]
     fn test_payload() {
         let r = Request::new(&Url::parse("http://google.com/").unwrap(), Method::Get)
-            .body(&get_serialized_payload());
+            .body(get_serialized_payload());
         assert!(r.body.is_some());
     }
 

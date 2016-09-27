@@ -1,12 +1,8 @@
 //! The module that contains the code handling the HTTP response.
 
-use std::collections::HashMap;
-use std::collections::hash_map::Entry;
 use std::convert::From;
 use std::fmt::{Debug, Formatter, Result as FmtResult};
-use std::io::{Error, ErrorKind};
 use std::str;
-use std::string::FromUtf8Error;
 
 use curl::easy::Easy;
 use mime::Mime;
@@ -19,11 +15,14 @@ use serde;
 #[cfg(feature = "serde-serialization")]
 use serde_json;
 
+#[cfg(any(feature = "rustc-serialization", feature = "serde-serialization"))]
+use std::io::{Error, ErrorKind};
+
 /// Represents an HTTP response.
 pub struct Response {
     body: Vec<u8>,
     handle: Easy,
-    headers: HashMap<String, String>,
+    headers: Vec<(String, String)>,
     status_code: u16
 }
 
@@ -34,7 +33,7 @@ impl Response {
     /// from `Request.send(...)`.
     pub fn new(mut easy: Easy, headers: Vec<String>, body: Vec<u8>) -> Response {
         let headers =  {
-            let mut map: HashMap<String, String> = HashMap::new();
+            let mut vec = Vec::new();
             for header in headers {
                 let splitted: Vec<_> = header.splitn(2, ": ")
                                              .map(|part| part.trim())
@@ -44,22 +43,9 @@ impl Response {
                     continue;
                 }
 
-                // For every header, we check whether we've already got an entry
-                // with it's key in our dictionary. If so, we append the new value
-                // as per https://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2
-                // with a comma.
-                match map.entry(splitted[0].to_owned()) {
-                    Entry::Occupied(mut e) => {
-                        let mut entry = e.get_mut();
-                        entry.push_str(", ");
-                        entry.push_str(splitted[1]);
-                    },
-                    Entry::Vacant(e) => {
-                        e.insert(splitted[1].to_owned());
-                    }
-                }
+                vec.push((splitted[0].to_owned(), splitted[1].to_owned()));
             }
-            map
+            vec
         };
         let status_code = easy.response_code().expect("Failed to get the response status code from cURL.") as u16;
         Response {
@@ -94,13 +80,31 @@ impl Response {
             .and_then(|h| h.parse::<Mime>().ok())
     }
 
-    /// Attempts to get a single header value.
-    pub fn header(&self, name: &str) -> Option<&String> {
-        self.headers.get(name)
+    /// Ensures a successful response status code.
+    ///
+    /// Otherwise returns `ErrorKind::InvalidData`.
+    pub fn ensure_success(self) -> Result<Response, Error> {
+        if self.is_success() {
+            Ok(self)
+        } else {
+            let msg: &str = &format!("HTTP status code did not indicate success: {}.", self.status_code());
+            Err(Error::new(ErrorKind::InvalidData, msg))
+        }
     }
 
-    /// Gets the response headers.
-    pub fn headers(&self) -> &HashMap<String, String> {
+    /// Attempts to get a single header value.
+    ///
+    /// If there are multiple headers with the same name, this method returns
+    /// the first one. If you need to get access to the other values, use
+    /// [`Response::headers()`](struct.Response.html#method.headers).
+    pub fn header(&self, name: &str) -> Option<&String> {
+        self.headers.iter().filter(|kvp| kvp.0 == name)
+                           .nth(0)
+                           .map(|kvp| &kvp.1)
+    }
+
+    /// Gets all response headers.
+    pub fn headers(&self) -> &Vec<(String, String)> {
         &self.headers
     }
 
@@ -155,14 +159,6 @@ impl Response {
         self.json::<serde_json::Value>()
     }
 
-    /// Consumes the response and returns the underlying cURL handle
-    /// used for the request.
-    ///
-    /// Calling `from()` or `into()` does the same.
-    pub fn reuse(self) -> Easy {
-        self.handle
-    }
-
     /// Gets the response status code.
     pub fn status_code(&self) -> u16 {
         self.status_code
@@ -180,8 +176,10 @@ impl Debug for Response {
 }
 
 impl From<Response> for Easy {
+    /// Consumes the response and returns the underlying cURL handle
+    /// used for the request so that it can be reused.
     fn from(response: Response) -> Self {
-        response.reuse()
+        response.handle
     }
 }
 
@@ -193,7 +191,7 @@ impl From<Response> for Vec<u8> {
 
 #[cfg(feature = "response-to-string")]
 impl ::std::convert::TryFrom<Response> for String {
-    type Err = FromUtf8Error;
+    type Err = ::std::string::FromUtf8Error;
 
     fn try_from(response: Response) -> Result<Self, Self::Err> {
         String::from_utf8(response.body)
