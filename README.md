@@ -1,6 +1,10 @@
 # tokio-request
-[![Build Status](https://travis-ci.org/NeoLegends/tokio-request.svg?branch=master)](https://travis-ci.org/NeoLegends/tokio-request)
-[![Coverage Status](https://coveralls.io/repos/github/NeoLegends/tokio-request/badge.svg?branch=master)](https://coveralls.io/github/NeoLegends/tokio-request?branch=master)
+
+
+[![Travis](https://img.shields.io/travis/NeoLegends/tokio-request.svg?maxAge=2592000)](https://travis-ci.org/NeoLegends/tokio-request)
+[![GitHub issues](https://img.shields.io/github/issues/NeoLegends/tokio-request.svg?maxAge=2592000)](https://github.com/NeoLegends/tokio-request/issies)
+[![GitHub issues](https://img.shields.io/github/issues-closed-raw/NeoLegends/tokio-request.svg?maxAge=2592000)](https://github.com/NeoLegends/tokio-request/issues)
+[![Coveralls](https://img.shields.io/coveralls/NeoLegends/tokio-request.svg?maxAge=2592000)](https://coveralls.io/github/NeoLegends/tokio-request?branch=master)
 
 An asynchronous HTTP client library for Rust
 
