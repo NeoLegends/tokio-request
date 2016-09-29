@@ -8,10 +8,15 @@
 
 An asynchronous HTTP client library for Rust
 
-As this isn't crates.io as of now, add the following to your Cargo.toml:
-```
+As this isn't on crates.io as of now, add the following to your Cargo.toml:
+```toml
 [dependencies]
 tokio-request = { git = "https://github.com/NeoLegends/tokio-request" }
+```
+
+and the following to your crate's root file:
+```rust
+extern crate tokio_request;
 ```
 
 This library only works on Rust nightly at the moment.
