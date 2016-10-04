@@ -177,7 +177,7 @@ impl Request {
         {
             let mut query_pairs = self.url.query_pairs_mut();
             for (key, value) in self.params {
-                query_pairs.append_pair(&key, &value);
+                query_pairs.append_pair(key.trim(), value.trim());
             }
         }
         let headers = {
