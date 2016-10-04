@@ -165,6 +165,12 @@ impl Response {
     }
 }
 
+impl AsRef<[u8]> for Response {
+    fn as_ref(&self) -> &[u8] {
+        &self.body
+    }
+}
+
 impl Debug for Response {
     fn fmt(&self, fmt: &mut Formatter) -> FmtResult {
         fmt.debug_struct(stringify!(Response))
