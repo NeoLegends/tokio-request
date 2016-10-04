@@ -80,15 +80,17 @@ impl Response {
             .and_then(|h| h.parse::<Mime>().ok())
     }
 
-    /// Ensures a successful response status code.
+    /// Returns `Ok` in case of a successful status code and `Err` if not.
     ///
-    /// Otherwise returns `ErrorKind::InvalidData`.
-    pub fn ensure_success(self) -> Result<Response, Error> {
+    /// This returns the `Response` in both cases and uses the `Ok`
+    /// and `Err` variants to indicate the result. See
+    /// [`Response::is_success`](struct.Response.html#method.is_success)
+    /// for more information.
+    pub fn ensure_success(self) -> Result<Response, Response> {
         if self.is_success() {
             Ok(self)
         } else {
-            let msg: &str = &format!("HTTP status code did not indicate success: {}.", self.status_code());
-            Err(Error::new(ErrorKind::InvalidData, msg))
+            Err(self)
         }
     }
 
