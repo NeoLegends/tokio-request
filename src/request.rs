@@ -158,6 +158,14 @@ impl Request {
         self
     }
 
+    /// Sets the given request URL parameters.
+    ///
+    /// This overwrites all previously set parameters.
+    pub fn params(mut self, params: Vec<(String, String)>) -> Self {
+        self.params = params;
+        self
+    }
+
     /// Creates a new `Session` on the specified event loop to send the HTTP request through
     /// and returns a future that fires off the request, parses the response and resolves to
     /// a `Response`-struct on success.
