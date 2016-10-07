@@ -19,8 +19,6 @@ and the following to your crate's root file:
 extern crate tokio_request;
 ```
 
-This library only works on Rust nightly at the moment.
-
 ## Examples
 Asynchronously send an HTTP request on the specified loop:
 

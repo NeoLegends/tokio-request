@@ -5,7 +5,9 @@ use std::io::Error;
 use std::str::from_utf8;
 use std::sync::mpsc::channel;
 use std::time::Duration;
-use super::Method;
+
+use Method;
+
 use curl::easy::{Easy, List};
 use futures::{BoxFuture, failed, Future};
 use response::Response;
@@ -267,11 +269,23 @@ impl Request {
             Ok(_) => session.perform(easy)
                             .map_err(|err| err.into_error())
                             .map(move |ez| {
-                                let body = body_rx.try_iter().fold(Vec::new(), |mut data, slice| {
-                                    data.extend(slice);
-                                    data
-                                });
-                                let headers = header_rx.try_iter().collect::<Vec<_>>();
+                                // In an ideal world where receiver_try_iter is stable
+                                // we could shorten this code to two lines.
+                                let body = {
+                                    let mut b = Vec::new();
+                                    while let Ok(item) = body_rx.try_recv() {
+                                        b.extend(item);
+                                    }
+                                    b
+                                };
+                                let headers = {
+                                    let mut h = Vec::new();
+                                    while let Ok(hdr) = header_rx.try_recv() {
+                                        h.push(hdr);
+                                    }
+                                    h
+                                };
+
                                 Response::new(ez, headers, body)
                             })
                             .boxed(),
@@ -327,42 +341,5 @@ impl Debug for Request {
 impl Display for Request {
     fn fmt(&self, fmt: &mut Formatter) -> FmtResult {
         write!(fmt, "{} {}", self.method, self.url)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use ::{Method, Request};
-    use url::Url;
-
-    #[cfg(feature = "rustc-serialization")]
-    use rustc_serialize;
-
-    #[cfg(feature = "serde-serialization")]
-    use serde_json;
-
-    #[cfg_attr(feature = "rustc-serialization", derive(RustcEncodable, RustcDecodable))]
-    #[cfg_attr(feature = "serde-serialization", derive(Serialize, Deserialize))]
-    struct TestPayload {
-        a: u32,
-        b: u32
-    }
-
-    #[test]
-    #[cfg(any(feature = "rustc-serialization", feature = "serde-serialization"))]
-    fn test_payload() {
-        let r = Request::new(&Url::parse("http://google.com/").unwrap(), Method::Get)
-            .body(get_serialized_payload());
-        assert!(r.body.is_some());
-    }
-
-    #[cfg(feature = "rustc-serialization")]
-    fn get_serialized_payload() -> Vec<u8> {
-        rustc_serialize::json::encode(&TestPayload { a: 10, b: 15 }).unwrap().into_bytes()
-    }
-
-    #[cfg(feature = "serde-serialization")]
-    fn get_serialized_payload() -> Vec<u8> {
-        serde_json::to_vec(&TestPayload { a: 10, b: 15}).unwrap()
     }
 }

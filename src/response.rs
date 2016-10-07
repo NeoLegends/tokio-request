@@ -196,12 +196,3 @@ impl From<Response> for Vec<u8> {
         response.body
     }
 }
-
-#[cfg(feature = "response-to-string")]
-impl ::std::convert::TryFrom<Response> for String {
-    type Err = ::std::string::FromUtf8Error;
-
-    fn try_from(response: Response) -> Result<Self, Self::Err> {
-        String::from_utf8(response.body)
-    }
-}

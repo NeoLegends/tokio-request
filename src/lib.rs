@@ -6,8 +6,6 @@
 //! opinionated as e.g. `hyper` and relying on the brand new
 //! `tokio_curl`-crate and `futures-rs`.
 //!
-//! This library only works on Rust nightly at the moment.
-//!
 //! # Quick Start
 //! Asynchronously send an HTTP request on the specified loop:
 //!
@@ -37,45 +35,21 @@
 //!
 //! POST some JSON to an API:
 //!
-//! ```rust
-//! # #![feature(plugin)]
-//! # #![cfg_attr(feature = "serde-serialization", feature(plugin, custom_derive))]
-//! # #![cfg_attr(feature = "serde-serialization", plugin(serde_macros))]
-//! # extern crate tokio_core;
-//! # extern crate tokio_request;
-//! # extern crate url;
-//! # #[cfg(feature = "rustc-serialization")]
-//! # extern crate rustc_serialize;
-//! # #[cfg(feature = "serde-serialization")]
-//! # extern crate serde;
-//! # #[cfg(feature = "serde-serialization")]
-//! # extern crate serde_json;
+//! ```rust,ignore
 //! use tokio_core::reactor::Core;
 //! use tokio_request::str::post;
-//! #
-//! # #[cfg_attr(feature = "rustc-serialization", derive(RustcEncodable, RustcDecodable))]
-//! # #[cfg_attr(feature = "serde-serialization", derive(Serialize, Deserialize))]
-//! # struct Data {
-//! #     a: u32,
-//! #     b: u32
-//! # }
 //!
-//! # #[cfg(any(feature = "rustc-serialization", feature = "serde-serialization"))]
-//! # fn main() {
 //! let mut evloop = Core::new().unwrap();
 //! let future = post("https://httpbin.org/post")
 //!                 .json(&Data { a: 10, b: 15 }) // Data is anything serializable
 //!                 .send(evloop.handle());
 //! let result = evloop.run(future).expect("HTTP Request failed!");
-//! # assert!(result.is_success());
+//! assert!(result.is_success());
 //! println!(
 //!     "Site answered with status code {} and body\n{}",
 //!     result.status_code(),
 //!     result.body_str().unwrap_or("<No response body>")
 //! );
-//! # }
-//! # #[cfg(not(any(feature = "rustc-serialization", feature = "serde-serialization")))]
-//! # fn main() { }
 //! ```
 //!
 //! # Caveats
@@ -87,11 +61,6 @@
 //! figured out.
 
 #![deny(missing_docs)]
-#![feature(receiver_try_iter)]
-#![cfg_attr(feature = "response-to-string", feature(try_from))]
-#![cfg_attr(feature = "serde-serialization", feature(plugin, custom_derive))]
-#![cfg_attr(feature = "serde-serialization", plugin(serde_macros))]
-#![cfg_attr(test, feature(concat_idents))]
 
 extern crate curl;
 extern crate futures;
@@ -112,9 +81,11 @@ mod request;
 mod response;
 
 use std::fmt::{Display, Formatter, Result as FmtResult};
+
+use url::Url;
+
 pub use self::request::*;
 pub use self::response::*;
-use url::Url;
 
 /// Issue a GET-Request to the specified URL.
 pub fn get(url: &Url) -> Request {

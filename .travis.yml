@@ -1,5 +1,11 @@
 language: rust
-rust: nightly
+rust:
+  - stable
+  - beta
+  - nightly
+matrix:
+  allow_failures:
+    - rust: nightly
 sudo: false
 
 cache:
@@ -8,7 +14,6 @@ cache:
 script:
   - cargo test --no-default-features --features rustc-serialization
   - cargo test --no-default-features --features serde-serialization
-  - cargo test --no-default-features --features response-to-string
 
 env:
   global:
