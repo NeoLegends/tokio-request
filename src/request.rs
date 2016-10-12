@@ -2,7 +2,7 @@
 
 use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use std::io::Error;
-use std::str::from_utf8;
+use std::str;
 use std::sync::mpsc::channel;
 use std::time::Duration;
 
@@ -224,7 +224,7 @@ impl Request {
                     Ok(())
                 })
                 .and_then(|_| easy.header_function(move |header| {
-                    match from_utf8(header) {
+                    match str::from_utf8(header) {
                         Ok(s) => {
                             let s = s.trim(); // Headers are \n-separated
                             if !first_header && s.len() > 0 { // First header is HTTP status line, don't want that
