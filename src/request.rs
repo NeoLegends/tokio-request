@@ -40,7 +40,7 @@ pub const LOW_SPEED_TIME: u32 = 10;
 /// cURL will follow this many redirects by default before aborting
 /// the request. See [`Request::max_redirects`](struct.Request.html#method.max_redirects)
 /// for more information.
-pub const MAX_REDIRECTS: u32 = 15;
+pub const MAX_REDIRECTS: u32 = 10;
 
 /// Represents an HTTP request.
 ///
