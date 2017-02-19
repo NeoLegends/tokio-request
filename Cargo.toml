@@ -10,7 +10,7 @@ keywords = ["http", "client", "request", "rest", "async", "asynchronous"]
 license = "MIT"
 
 [dependencies]
-curl = "0.3"
+curl = "0.4"
 futures = "0.1"
 mime = "0.2"
 rustc-serialize = { version = "0.3", optional = true }
